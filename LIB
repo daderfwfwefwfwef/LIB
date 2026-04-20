@@ -917,7 +917,15 @@ Library.ModeratorList = function(self)
     return ML
 end
 
-Library.Notification = function(self, Name, Duration, UseDrawing)
+Library.Notification = function(self, Title, Message, Duration, UseDrawing)
+    -- Handle both old and new parameter formats
+    if type(Message) == "number" then
+        -- Old format: Title, Duration, UseDrawing
+        UseDrawing = Duration
+        Duration = Message
+        Message = Title
+        Title = "Notification"
+    end
     Duration = Duration or 3
     UseDrawing = UseDrawing == nil and Library.UseDrawingNotifs or UseDrawing
     
@@ -957,7 +965,7 @@ Library.Notification = function(self, Name, Duration, UseDrawing)
         
         -- Text
         notif.text = Drawing.new("Text")
-        notif.text.Text = Name
+        notif.text.Text = Message
         notif.text.Color = FromRGB(242, 237, 245)
         notif.text.Size = 12
         notif.text.Position = V2(screenSize.X - 265, yPos + 12)
@@ -1010,7 +1018,7 @@ Library.Notification = function(self, Name, Duration, UseDrawing)
         topLine:AddToTheme({BackgroundColor3="Accent"})
 
         Items["Text"]=Instances:Create("TextLabel",{Parent=Items["Frame"].Instance,Name="\0",
-            FontFace=Library.Font,TextColor3=T.Text,Text=Name,
+            FontFace=Library.Font,TextColor3=T.Text,Text=Message,
             Position=U2(0,16,0,0),Size=U2(1,-20,1,0),
             BackgroundTransparency=1,TextXAlignment=Enum.TextXAlignment.Left,
             TextYAlignment=Enum.TextYAlignment.Center,
@@ -1571,17 +1579,17 @@ Library.CreateSettingsPage = function(self, Window, KeybindList, Watermark, Mode
     CS:Button({Name="Save",Callback=function()
         if configName and configName~="" then
             pcall(function() writefile(Library.Folders.Configs.."/"..configName..".json",Library:GetConfig()) end)
-            Library:RefreshConfigsList(cDropdown); Library:Notification("Saved "..configName,4)
+            Library:RefreshConfigsList(cDropdown); Library:Notification("Config", "Saved "..configName, 4)
         end
     end})
     CS:Button({Name="Load",Callback=function()
         if configSelected then
             local ok=pcall(function() Library:LoadConfig(readfile(Library.Folders.Configs.."/"..configSelected..".json")) end)
-            Library:Notification(ok and "Loaded "..configSelected or "Load failed",4)
+            Library:Notification("Config", ok and "Loaded "..configSelected or "Load failed", 4)
         end
     end})
     CS:Button({Name="Delete",Callback=function()
-        if configSelected then pcall(function() delfile(Library.Folders.Configs.."/"..configSelected..".json") end); Library:RefreshConfigsList(cDropdown); Library:Notification("Deleted "..configSelected,4) end
+        if configSelected then pcall(function() delfile(Library.Folders.Configs.."/"..configSelected..".json") end); Library:RefreshConfigsList(cDropdown); Library:Notification("Config", "Deleted "..configSelected, 4) end
     end})
     CS:Button({Name="Refresh",Callback=function() Library:RefreshConfigsList(cDropdown) end})
     pcall(function() Library:RefreshConfigsList(cDropdown) end)

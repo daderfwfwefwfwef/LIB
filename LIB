@@ -926,7 +926,11 @@ Library.Notification = function(self, Title, Message, Duration, UseDrawing)
         Message = Title
         Title = "Notification"
     end
-    Duration = Duration or 3
+    -- Ensure Duration is always a valid number (aggressive conversion)
+    if type(Duration) ~= "number" then
+        Duration = tonumber(tostring(Duration)) or 3
+    end
+    if Duration <= 0 then Duration = 3 end
     UseDrawing = UseDrawing == nil and Library.UseDrawingNotifs or UseDrawing
     
     if UseDrawing then
@@ -984,12 +988,14 @@ Library.Notification = function(self, Title, Message, Duration, UseDrawing)
         -- Animation: progress bar shrinks over duration
         local startTime = tick()
         local conn
+        local safeDuration = tonumber(Duration) or 3
+        if safeDuration <= 0 then safeDuration = 3 end
         conn = RunService.RenderStepped:Connect(function()
             local elapsed = tick() - startTime
-            local progress = math.clamp(1 - (elapsed / Duration), 0, 1)
+            local progress = math.clamp(1 - (elapsed / safeDuration), 0, 1)
             notif.progress.Size = V2(260 * progress, 2)
             
-            if elapsed >= Duration then
+            if elapsed >= safeDuration then
                 conn:Disconnect()
                 notif.bg.Visible = false
                 notif.border.Visible = false

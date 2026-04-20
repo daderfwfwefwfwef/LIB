@@ -47,8 +47,6 @@ local Library do
         UnnamedConnections = 0, UnnamedFlags = 0,
         Holder = nil, NotifHolder = nil, UnusedHolder = nil, KeyList = nil,
         Font = nil, CopiedColor = nil, Fonts = {}, IsMobile = IsMobile,
-        DrawingNotifs = {}, -- Drawing API notifications
-        UseDrawingNotifs = true, -- Enable Drawing API notifications
     }
     Library.__index = Library
     Library.Sections.__index = Library.Sections
@@ -247,25 +245,10 @@ Instances:Create("UIListLayout", {
     Padding=UD(0,6) })
 
 Library.Unload = function(self)
-    -- Clean up Drawing API notifications
-    for _, notif in ipairs(Library.DrawingNotifs) do
-        pcall(function()
-            notif.bg.Visible = false
-            notif.border.Visible = false
-            notif.accent.Visible = false
-            notif.text.Visible = false
-            notif.progress.Visible = false
-        end)
-    end
-    Library.DrawingNotifs = {}
-    
     for _,c in self.Connections do c.Connection:Disconnect() end
     for _,t in self.Threads do coroutine.close(t) end
     if self.Holder then self.Holder:Clean() end
     Library=nil
-end
-Library.SetNotificationMode = function(self, useDrawing)
-    Library.UseDrawingNotifs = useDrawing
 end
 Library.Round = function(self, Number, Float)
     local m=1/(Float or 1); return Floor(Number*m)/m
@@ -804,61 +787,6 @@ Library.Watermark = function(self, Name)
     Watermark:SetText(Name); return Watermark
 end
 
--- Drawing API Status Indicator
-Library.CreateStatusIndicator = function(self, Name, Position)
-    Position = Position or V2(10, 60)
-    local indicator = {}
-    
-    indicator.bg = Drawing.new("Square")
-    indicator.bg.Filled = true
-    indicator.bg.Color = FromRGB(18, 16, 23)
-    indicator.bg.Size = V2(180, 24)
-    indicator.bg.Position = Position
-    indicator.bg.ZIndex = 95
-    
-    indicator.border = Drawing.new("Square")
-    indicator.border.Filled = false
-    indicator.border.Color = FromRGB(25, 20, 35)
-    indicator.border.Size = V2(180, 24)
-    indicator.border.Position = Position
-    indicator.border.Thickness = 1
-    indicator.border.ZIndex = 96
-    
-    indicator.accent = Drawing.new("Square")
-    indicator.accent.Filled = true
-    indicator.accent.Color = FromRGB(215, 38, 50)
-    indicator.accent.Size = V2(3, 15)
-    indicator.accent.Position = V2(Position.X + 6, Position.Y + 4.5)
-    indicator.accent.ZIndex = 97
-    
-    indicator.text = Drawing.new("Text")
-    indicator.text.Text = Name
-    indicator.text.Color = FromRGB(242, 237, 245)
-    indicator.text.Size = 12
-    indicator.text.Position = V2(Position.X + 16, Position.Y + 6)
-    indicator.text.ZIndex = 98
-    
-    function indicator:SetVisibility(Bool)
-        self.bg.Visible = Bool
-        self.border.Visible = Bool
-        self.accent.Visible = Bool
-        self.text.Visible = Bool
-    end
-    
-    function indicator:SetText(Text)
-        self.text.Text = Text
-    end
-    
-    function indicator:Destroy()
-        self.bg.Visible = false
-        self.border.Visible = false
-        self.accent.Visible = false
-        self.text.Visible = false
-    end
-    
-    return indicator
-end
-
 Library.KeybindList = function(self)
     local KL={}; self.KeyList=KL; local Items={}
     local klPos=IsMobile and U2(1,-10,0.7,0) or U2(0,10,0.5,0)
@@ -917,146 +845,61 @@ Library.ModeratorList = function(self)
     return ML
 end
 
-Library.Notification = function(self, Title, Message, Duration, UseDrawing)
-    -- Handle both old and new parameter formats
-    if type(Message) == "number" then
-        -- Old format: Title, Duration, UseDrawing
-        UseDrawing = Duration
-        Duration = Message
-        Message = Title
-        Title = "Notification"
-    end
-    -- Ensure Duration is always a valid number (aggressive conversion)
-    if type(Duration) ~= "number" then
-        Duration = tonumber(tostring(Duration)) or 3
-    end
-    if Duration <= 0 then Duration = 3 end
-    UseDrawing = UseDrawing == nil and Library.UseDrawingNotifs or UseDrawing
-    
-    if UseDrawing then
-        -- Drawing API Notification
-        local notif = {}
-        local screenSize = Camera.ViewportSize
-        local yPos = 20
-        for _, n in ipairs(Library.DrawingNotifs) do
-            yPos = yPos + 50
-        end
-        
-        -- Background box
-        notif.bg = Drawing.new("Square")
-        notif.bg.Filled = true
-        notif.bg.Color = FromRGB(18, 16, 23)
-        notif.bg.Size = V2(260, 40)
-        notif.bg.Position = V2(screenSize.X - 280, yPos)
-        notif.bg.ZIndex = 100
-        
-        -- Border
-        notif.border = Drawing.new("Square")
-        notif.border.Filled = false
-        notif.border.Color = FromRGB(25, 20, 35)
-        notif.border.Size = V2(260, 40)
-        notif.border.Position = V2(screenSize.X - 280, yPos)
-        notif.border.Thickness = 1
-        notif.border.ZIndex = 101
-        
-        -- Accent bar
-        notif.accent = Drawing.new("Square")
-        notif.accent.Filled = true
-        notif.accent.Color = FromRGB(215, 38, 50)
-        notif.accent.Size = V2(3, 26)
-        notif.accent.Position = V2(screenSize.X - 270, yPos + 7)
-        notif.accent.ZIndex = 102
-        
-        -- Text
-        notif.text = Drawing.new("Text")
-        notif.text.Text = Message
-        notif.text.Color = FromRGB(242, 237, 245)
-        notif.text.Size = 12
-        notif.text.Position = V2(screenSize.X - 265, yPos + 12)
-        notif.text.ZIndex = 103
-        
-        -- Progress bar
-        notif.progress = Drawing.new("Square")
-        notif.progress.Filled = true
-        notif.progress.Color = FromRGB(215, 38, 50)
-        notif.progress.Size = V2(260, 2)
-        notif.progress.Position = V2(screenSize.X - 280, yPos + 38)
-        notif.progress.ZIndex = 102
-        
-        table.insert(Library.DrawingNotifs, notif)
-        
-        -- Animation: progress bar shrinks over duration
-        local startTime = tick()
-        local conn
-        local safeDuration = tonumber(Duration) or 3
-        if safeDuration <= 0 then safeDuration = 3 end
-        conn = RunService.RenderStepped:Connect(function()
-            local elapsed = tick() - startTime
-            local progress = math.clamp(1 - (elapsed / safeDuration), 0, 1)
-            notif.progress.Size = V2(260 * progress, 2)
-            
-            if elapsed >= safeDuration then
-                conn:Disconnect()
-                notif.bg.Visible = false
-                notif.border.Visible = false
-                notif.accent.Visible = false
-                notif.text.Visible = false
-                notif.progress.Visible = false
-                for i, n in ipairs(Library.DrawingNotifs) do
-                    if n == notif then table.remove(Library.DrawingNotifs, i) break end
-                end
-            end
+Library.Notification = function(self, Name, Duration)
+    Duration = Duration or 3
+    local Items={}
+    Items["Frame"]=Instances:Create("Frame",{Parent=self.NotifHolder.Instance,Name="\0",
+        Size=U2(0,260,0,40),BorderSizePixel=0,BackgroundColor3=T.Surface,ClipsDescendants=true})
+    Corner(Items["Frame"].Instance,5); Stroke(Items["Frame"].Instance,T.Border,1)
+
+    -- left accent bar
+    local acBar=Instances:Create("Frame",{Parent=Items["Frame"].Instance,Name="\0",
+        Size=U2(0,3,0,0),AnchorPoint=V2(0,0.5),Position=U2(0,6,0.5,0),
+        BorderSizePixel=0,BackgroundColor3=T.Accent})
+    Corner(acBar.Instance,2); acBar:AddToTheme({BackgroundColor3="Accent"})
+
+    -- top red line
+    local topLine=Instances:Create("Frame",{Parent=Items["Frame"].Instance,Name="\0",
+        Size=U2(0,0,0,1),Position=U2(0,0,0,0),BorderSizePixel=0,BackgroundColor3=T.Accent})
+    topLine:AddToTheme({BackgroundColor3="Accent"})
+
+    -- text
+    Items["Text"]=Instances:Create("TextLabel",{Parent=Items["Frame"].Instance,Name="\0",
+        FontFace=Library.Font,TextColor3=T.Text,Text=Name,
+        Position=U2(0,16,0,0),Size=U2(1,-20,1,0),
+        BackgroundTransparency=1,TextXAlignment=Enum.TextXAlignment.Left,
+        TextYAlignment=Enum.TextYAlignment.Center,
+        BorderSizePixel=0,TextSize=IsMobile and 13 or 11,
+        BackgroundColor3=FromRGB(255,255,255)})
+    Items["Text"]:AddToTheme({TextColor3="Text"})
+
+    -- bottom progress bar
+    local prog=Instances:Create("Frame",{Parent=Items["Frame"].Instance,Name="\0",
+        AnchorPoint=V2(0,1),Position=U2(0,0,1,0),
+        Size=U2(1,0,0,2),BorderSizePixel=0,BackgroundColor3=T.Accent})
+    prog:AddToTheme({BackgroundColor3="Accent"})
+
+    -- animate in
+    Items["Frame"].Instance.BackgroundTransparency=1
+    Items["Text"].Instance.TextTransparency=1
+
+    Library:Thread(function()
+        task.wait(0.05)
+        Items["Frame"]:Tween(nil,{BackgroundTransparency=0})
+        Items["Text"]:Tween(nil,{TextTransparency=0})
+        acBar:Tween(TweenInfo.new(0.28,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=U2(0,3,0.65,0)})
+        topLine:Tween(TweenInfo.new(0.35,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Size=U2(0.5,0,0,1)})
+
+        -- progress shrink
+        task.wait(0.35)
+        prog:Tween(TweenInfo.new(Duration,Enum.EasingStyle.Linear,Enum.EasingDirection.Out),{Size=U2(0,0,0,2)})
+
+        task.delay(Duration,function()
+            Items["Frame"]:Tween(TweenInfo.new(0.18,Enum.EasingStyle.Quart,Enum.EasingDirection.In),{BackgroundTransparency=1,Size=U2(0,260,0,0)})
+            Items["Text"]:Tween(nil,{TextTransparency=1})
+            task.wait(0.22); pcall(function() Items["Frame"]:Clean() end)
         end)
-    else
-        -- GUI Notification (original)
-        local Items={}
-        Items["Frame"]=Instances:Create("Frame",{Parent=self.NotifHolder.Instance,Name="\0",
-            Size=U2(0,260,0,40),BorderSizePixel=0,BackgroundColor3=T.Surface,ClipsDescendants=true})
-        Corner(Items["Frame"].Instance,5); Stroke(Items["Frame"].Instance,T.Border,1)
-
-        local acBar=Instances:Create("Frame",{Parent=Items["Frame"].Instance,Name="\0",
-            Size=U2(0,3,0,0),AnchorPoint=V2(0,0.5),Position=U2(0,6,0.5,0),
-            BorderSizePixel=0,BackgroundColor3=T.Accent})
-        Corner(acBar.Instance,2); acBar:AddToTheme({BackgroundColor3="Accent"})
-
-        local topLine=Instances:Create("Frame",{Parent=Items["Frame"].Instance,Name="\0",
-            Size=U2(0,0,0,1),Position=U2(0,0,0,0),BorderSizePixel=0,BackgroundColor3=T.Accent})
-        topLine:AddToTheme({BackgroundColor3="Accent"})
-
-        Items["Text"]=Instances:Create("TextLabel",{Parent=Items["Frame"].Instance,Name="\0",
-            FontFace=Library.Font,TextColor3=T.Text,Text=Message,
-            Position=U2(0,16,0,0),Size=U2(1,-20,1,0),
-            BackgroundTransparency=1,TextXAlignment=Enum.TextXAlignment.Left,
-            TextYAlignment=Enum.TextYAlignment.Center,
-            BorderSizePixel=0,TextSize=IsMobile and 13 or 11,
-            BackgroundColor3=FromRGB(255,255,255)})
-        Items["Text"]:AddToTheme({TextColor3="Text"})
-
-        local prog=Instances:Create("Frame",{Parent=Items["Frame"].Instance,Name="\0",
-            AnchorPoint=V2(0,1),Position=U2(0,0,1,0),
-            Size=U2(1,0,0,2),BorderSizePixel=0,BackgroundColor3=T.Accent})
-        prog:AddToTheme({BackgroundColor3="Accent"})
-
-        Items["Frame"].Instance.BackgroundTransparency=1
-        Items["Text"].Instance.TextTransparency=1
-
-        Library:Thread(function()
-            task.wait(0.05)
-            Items["Frame"]:Tween(nil,{BackgroundTransparency=0})
-            Items["Text"]:Tween(nil,{TextTransparency=0})
-            acBar:Tween(TweenInfo.new(0.28,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=U2(0,3,0.65,0)})
-            topLine:Tween(TweenInfo.new(0.35,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Size=U2(0.5,0,0,1)})
-
-            task.wait(0.35)
-            prog:Tween(TweenInfo.new(Duration,Enum.EasingStyle.Linear,Enum.EasingDirection.Out),{Size=U2(0,0,0,2)})
-
-            task.delay(Duration,function()
-                Items["Frame"]:Tween(TweenInfo.new(0.18,Enum.EasingStyle.Quart,Enum.EasingDirection.In),{BackgroundTransparency=1,Size=U2(0,260,0,0)})
-                Items["Text"]:Tween(nil,{TextTransparency=1})
-                task.wait(0.22); pcall(function() Items["Frame"]:Clean() end)
-            end)
-        end)
-    end
+    end)
 end
 
 Library.Window = function(self, Data)
@@ -1585,17 +1428,17 @@ Library.CreateSettingsPage = function(self, Window, KeybindList, Watermark, Mode
     CS:Button({Name="Save",Callback=function()
         if configName and configName~="" then
             pcall(function() writefile(Library.Folders.Configs.."/"..configName..".json",Library:GetConfig()) end)
-            Library:RefreshConfigsList(cDropdown); Library:Notification("Config", "Saved "..configName, 4)
+            Library:RefreshConfigsList(cDropdown); Library:Notification("Saved "..configName,4)
         end
     end})
     CS:Button({Name="Load",Callback=function()
         if configSelected then
             local ok=pcall(function() Library:LoadConfig(readfile(Library.Folders.Configs.."/"..configSelected..".json")) end)
-            Library:Notification("Config", ok and "Loaded "..configSelected or "Load failed", 4)
+            Library:Notification(ok and "Loaded "..configSelected or "Load failed",4)
         end
     end})
     CS:Button({Name="Delete",Callback=function()
-        if configSelected then pcall(function() delfile(Library.Folders.Configs.."/"..configSelected..".json") end); Library:RefreshConfigsList(cDropdown); Library:Notification("Config", "Deleted "..configSelected, 4) end
+        if configSelected then pcall(function() delfile(Library.Folders.Configs.."/"..configSelected..".json") end); Library:RefreshConfigsList(cDropdown); Library:Notification("Deleted "..configSelected,4) end
     end})
     CS:Button({Name="Refresh",Callback=function() Library:RefreshConfigsList(cDropdown) end})
     pcall(function() Library:RefreshConfigsList(cDropdown) end)
